@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:  
+  labels:
+    app: customer-management
+    home-task: unity
+  name: customer-management
+  namespace: default
+
+spec:
+  selector:
+    matchLabels:
+      app: customer-management
+  template:
+    metadata:
+      labels:
+        app: customer-management
+        home-task: unity
+    spec:
+      containers:
+      - env:
+        - name: MONGO_URI
+          value: mongodb://mongo-0.mongo:27017
+        - name: KAFKA_BROKERS
+          value: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092
+        - name: KAFKA_TOPIC
+          value: purchases
+        image: customer-management:v2.0.5
+        imagePullPolicy: IfNotPresent
+        name: customer-management
+        ports:
+        - containerPort: 3001
+  replicas: 1
