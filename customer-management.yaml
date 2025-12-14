@@ -25,7 +25,7 @@ spec:
           value: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092
         - name: KAFKA_TOPIC
           value: purchases
-        image: customer-management:v2.0.5
+        image: ghcr.io/yaronkalatian/customer-management:IMAGE_TAG
         imagePullPolicy: IfNotPresent
         name: customer-management
         ports:
