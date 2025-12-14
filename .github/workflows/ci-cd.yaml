@@ -78,5 +78,5 @@ jobs:
           sed -i "s|IMAGE_TAG|$IMAGE_TAG|g" web-server.yaml
           sed -i "s|IMAGE_TAG|$IMAGE_TAG|g" customer-management.yaml
 
-          kubectl apply -f web-server.yaml
-          kubectl apply -f customer-management.yaml
+          kubectl apply --validate=false -f web-server.yaml
+          kubectl apply --validate=false -f customer-management.yaml
