@@ -1,0 +1,66 @@
+name: CI/CD
+on:
+  push:
+    branches: [ main ]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Get current version
+        id: version
+        run: |
+          # Read version from file
+          if [ -f version.txt ]; then
+            VERSION=$(cat version.txt)
+          else
+            VERSION="v2.0.4"
+          fi
+          echo "Current version: $VERSION"
+
+          # Increment patch number
+          BASE=$(echo $VERSION | sed -E 's/(v[0-9]+\.[0-9]+)\.([0-9]+)/\1/')
+          PATCH=$(echo $VERSION | sed -E 's/v[0-9]+\.[0-9]+\.([0-9]+)/\1/')
+          PATCH=$((PATCH + 1))
+          NEW_VERSION="${BASE}.${PATCH}"
+          echo "New version: $NEW_VERSION"
+
+          # Save new version to file (optional)
+          echo $NEW_VERSION > version.txt
+
+          # Make version available to next steps
+          echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
+
+      - name: Build Docker image for web-server
+        run: |
+          cd web-server
+          docker build -t web-server:${{ steps.version.outputs.version }} .
+          cd ..
+      
+      - name: Build Docker image for customer-management
+        run: |
+          cd customer-management
+          docker build -t web-server:${{ steps.version.outputs.version }} .
+          cd ..
+
+    - name: Push images
+      run: |
+          minikube image load web-server:${{ steps.version.outputs.version }}
+          minikube image load customer-management:${{ steps.version.outputs.version }}
+  deploy:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up kubectl
+      uses: azure/setup-kubectl@v3
+      with:
+        version: 'latest'
+    - name: Deploy manifests
+      env:
+        KUBECONFIG: ${{ secrets.KUBECONFIG }}
+      run: |
+        kubectl apply -f customer-management.yaml
+        kubectl apply -f web-server.yaml
