@@ -5,7 +5,7 @@ on:
     branches: [ main ]
 
 permissions:
-  contents: read
+  contents: write
   packages: write
 
 jobs:
@@ -18,21 +18,22 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Get current version
+      - name: Get version from git tag
         id: version
         run: |
-          if [ -f version.txt ]; then
-            VERSION=$(cat version.txt)
+          git fetch --tags
+
+          LAST_TAG=$(git tag --list "v*" --sort=-v:refname | head -n 1)
+
+          if [ -z "$LAST_TAG" ]; then
+            NEW_VERSION="v2.0.0"
           else
-            VERSION="v2.0.4"
+            BASE=$(echo $LAST_TAG | sed -E 's/(v[0-9]+\.[0-9]+)\.([0-9]+)/\1/')
+            PATCH=$(echo $LAST_TAG | sed -E 's/v[0-9]+\.[0-9]+\.([0-9]+)/\1/')
+            PATCH=$((PATCH + 1))
+            NEW_VERSION="${BASE}.${PATCH}"
           fi
 
-          BASE=$(echo $VERSION | sed -E 's/(v[0-9]+\.[0-9]+)\.([0-9]+)/\1/')
-          PATCH=$(echo $VERSION | sed -E 's/v[0-9]+\.[0-9]+\.([0-9]+)/\1/')
-          PATCH=$((PATCH + 1))
-          NEW_VERSION="${BASE}.${PATCH}"
-
-          echo $NEW_VERSION > version.txt
           echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
 
       - name: Login to GitHub Container Registry
@@ -57,6 +58,18 @@ jobs:
             ./customer-management
 
           docker push ghcr.io/${{ github.repository_owner }}/customer-management:${{ steps.version.outputs.version }}
+
+      - name: Create git tag
+        run: |
+          VERSION=${{ steps.version.outputs.version }}
+
+          if git rev-parse "$VERSION" >/dev/null 2>&1; then
+            echo "Tag $VERSION already exists, skipping"
+            exit 0
+          fi
+
+          git tag "$VERSION"
+          git push origin "$VERSION"    
 
   # deploy:
   #   needs: build
